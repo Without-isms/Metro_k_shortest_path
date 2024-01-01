@@ -17,10 +17,17 @@ dis = []
 station_manager = StationManager()
 line_manager = LineManager()
 
+def get_same_lines(from_station, to_station):
+    line_numbers = []
+    for each_line in from_station.lines:
+        if each_line in to_station.lines:
+            line_numbers.append(each_line)
+    return line_numbers
+
 for i in range(0, len(stations_list)):
     v_matrix.append([])
     for j in range(0, len(stations_list)):
-        same_lines = station_manager.get_same_lines(stations_list[i], stations_list[j])
+        same_lines = get_same_lines(stations_list[i], stations_list[j])
         v_matrix[i].append(line_manager.get_best_route(station_manager, stations_list[i], stations_list[j], same_lines))
 
 import heapq
@@ -39,33 +46,39 @@ while True:
         one_or_k = 2
         break
 
-def dijkstra(v_matrix, start, end, bias):
+def dijkstra(v_matrix, start_index, end_index, bias):
     # 初始化距离和路径记录数组
-    dis = [(9999,Path()) for _ in range(len(v_matrix))]
-    dis[start] = (0,Path())
     book = [0] * len(v_matrix)
+    dis = []
+    #dis = [(9999,Path()) for _ in range(len(v_matrix))]
+    for i in range(0, len(v_matrix)):
+        dis.append((v_matrix[start_index][i].stops, Path().add_path(v_matrix[start_index][i],False)))
+    dis[start_index] = (0,Path())
     while True:
         # 找到未处理的最小距离顶点
-        u = min((d, idx) for idx, (d, _) in enumerate(dis) if book[idx] == 0)[1]
-        if u == end or dis[u][0] == 9999:#如果u是终止点或u是还未到达的点（dis[u][0] == 9999）
+        candidates = [(d, idx) for idx, (d, _) in enumerate(dis) if book[idx] == 0]
+        if candidates:
+            u = min(candidates)[1]
+        else:
+            break
+        if dis[u][0] == 9999:#????
             break
         # 更新邻接顶点的距离
         for v in range(len(v_matrix[u])):
+            if v==13:
+                bbbb=1
             if not book[v]:
                 if v_matrix[u][v].stops < 9999:
-                    new_distance = dis[u][0] + v_matrix[u][v].stops
-                    bbbb=1
+                    new_distance = dis[u][0] + v_matrix[u][v].stops + bias
                     if new_distance < dis[v][0]:
-                        dis[v] = (new_distance, dis[u][1].add_path(v_matrix[u][v]))
+                        dis[v] = (new_distance, dis[u][1].add_path(v_matrix[u][v],False))
                 elif v_matrix[u][v].stops == 9999:
                     continue#此路不通
-
-
         # 标记u为已处理
         book[u] = 1
-    return dis[end]
+    return dis[end_index]
 
-def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index):
+def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, line_manager):
     start_index = station_index[start_station]
     terminal_index = station_index[terminal_station]
     # 初始最短路径
@@ -88,48 +101,71 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index):
             for spur_node in route_belongs_dif_line.stations:
                 spur_node_index = station_index[spur_node.name]
                 paths_with_root = paths[-1].routes[:j + 1]
-                new_root_path = []
-                found_spur_node = False  # 用于标记是否找到了spur_node
+                root_path = Path()
+                list_route_of_partial_root = []
                 for route_with_partial_root in paths_with_root:
-                    route_of_partial_root=[]
-                    if found_spur_node:
-                        break  # 如果已经找到spur_node，跳出外部循环
                     for station in route_with_partial_root.stations:
+                        list_route_of_partial_root.append(station)
                         if station.name == spur_node.name:
-                            found_spur_node = True  # 标记找到了spur_node
-                            break  # 找到后跳出内部循环
-                        route_of_partial_root.append(station)
-                    new_root_path.append(route_of_partial_root)
-                root_path = new_root_path
+                            break# 标记找到了spur_node
+                    if(len(list_route_of_partial_root)>0):
+                        route_of_partial_root=Route()
+                        route_of_partial_root.construct_route(line_manager, station_manager, list_route_of_partial_root[0],
+                                                              list_route_of_partial_root[-1], get_same_lines(list_route_of_partial_root[0],list_route_of_partial_root[-1]))
+                        root_path=root_path.add_path(route_of_partial_root,False)
                 original_v_matrix = copy.deepcopy(v_matrix)
-                for path in paths:
-                    exists_or_not = any(
-                        any(station.name == spur_node.name for station in route.stations)
-                        for path in paths
-                        for route in path.routes
-                    )
-                    #找到path集合里面所有path是否包括spur node，之后找path中所有经过spur node的弧，找到它们的出点，让所有spur_node-出点的弧都不被经过
-                    # （此处需要注意，路过spur_node和出点但不以spur_node和出点为出发点的是不是也应该block
-                    if len(path.routes) > j and exists_or_not:
-                        spur_node_to_index = station_index[path.routes[j].to_stop]
-                        # v_matrix中含有南门-乐桥的部分的弧全部都赋值为9999
-                        #把line中的station改为Station对象
-                        matching_elements = v_matrix[spur_node_to_index]
-                        for matching_element in matching_elements:
-                            blocked_route_to_stop = matching_element.to_stop
-                            v_matrix[spur_node_to_index][station_index[blocked_route_to_stop]].stops = 9999
+                path_station_indices = [
+                    (path_index, station_index)
+                    for path_index, path in enumerate(paths)
+                    for station_index, station in enumerate(path.station_visit_sequence)
+                    if station.name == spur_node.name
+                ]
+                # 定位所有包含spur_node的path在paths中的index还有所有route在path.routes中的index
+                # 之后找path中所有经过spur node的弧，找到它们的出点，让所有spur_node-出点的弧都不被经过
+                # （此处需要注意，路过spur_node和出点但不以spur_node和出点为出发点的是不是也应该block
+                spur_node_to_station_list = []
+                for spur_node_to_path_sation_index in path_station_indices:
+                    spur_node_to_station=paths[spur_node_to_path_sation_index[0]].station_visit_sequence[
+                        spur_node_to_path_sation_index[1] + 1]
+                    spur_node_to_station_list.append(spur_node_to_station)
+                    for spur_node_to_station in spur_node_to_station_list:
+                        # 找到v_matrix中含有spur_node到spur_node_to_index_list中所有点的弧，全部都赋值为9999
+                        # 先识别spur_node到spur_node_to_index_list是正着的还是反着的，识别之后找到相应的线路，然后找到所有index符合的
+                        same_line = get_same_lines(spur_node, spur_node_to_station)[0]
+                        selected_line = line_manager.lines[same_line]
+                        blocked_routes=[]
+                        for from_stations in selected_line.stations:
+                            for to_stations in selected_line.stations:
+                                if spur_node.index > spur_node_to_station.index:  # 反着开
+                                    if ((from_stations.index>=spur_node.index) & (to_stations.index<=spur_node_to_station.index)):
+                                        blocked_routes.append((from_stations,to_stations))
+                                elif spur_node.index < spur_node_to_station.index:
+                                    if ((from_stations.index <= spur_node.index) & (to_stations.index >= spur_node_to_station.index)):
+                                        blocked_routes.append((from_stations, to_stations))
+                        for blocked_route in blocked_routes:
+                            v_matrix[blocked_route[0].index][blocked_route[1].index].stops = 9999
                 # 计算从spur_node到terminal的最短路径
-                _, spur_path = dijkstra(v_matrix, spur_node_index, terminal_index, bias)
+                distance_plus_bias, spur_path = dijkstra(v_matrix, spur_node_index, terminal_index, bias)
                 total_stops = sum(route.stops for route in spur_path.routes)
-                if total_stops < 9999 & total_stops > 0:
-                    total_path = root_path + spur_path
-                    heapq.heappush(potential_k_paths, (len(total_path), total_path))
+                if (total_stops < 9999) & (total_stops > 0):
+                    new_path=copy.deepcopy(root_path)
+                    for route_of_spur_path in spur_path.routes:
+                        new_path=new_path.add_path(route_of_spur_path,True)
+                    heapq.heappush(potential_k_paths, (distance_plus_bias, new_path))
                 # 恢复原始图
+                #解决下一个应该是从spurpath的最后一个节点出发
                 v_matrix = original_v_matrix
         # 添加下一个最短路径
         if(potential_k_paths==[]):
             continue
-        paths.append(heapq.heappop(potential_k_paths)[1])
+        duplicate = True
+        while duplicate:
+            duplicate = False
+            potential_new_path = heapq.heappop(potential_k_paths)[1]
+            for path in paths:
+                if path.station_visit_sequence_index == potential_new_path.station_visit_sequence_index:
+                    duplicate=True
+        paths.append(potential_new_path)
     return paths
 
 
@@ -151,7 +187,6 @@ if __name__ == '__main__':
         terminal_index = station_index[terminal_station]
         n = len(stations_list)
         if one_or_k == 1:
-            print("Calculating using Dijkstra")
             dis = []
             book = []
             for i in range(0, len(v_matrix)):
@@ -160,11 +195,11 @@ if __name__ == '__main__':
             book[start_index] = 1
 
             for i in range(n - 1):
-                min = (9999, [Route()])
+                min_and_route = (9999, [Route()])
                 u = -1
                 for j in range(0, n):
-                    if book[j] == 0 and dis[j][0] < min[0]:
-                        min = (dis[j][0], dis[j][1])
+                    if book[j] == 0 and dis[j][0] < min_and_route[0]:
+                        min_and_route = (dis[j][0], dis[j][1])
                         u = j
                 if u == -1:  # No path found
                     break
@@ -185,7 +220,7 @@ if __name__ == '__main__':
                 print_route_info(each_route, line_manager)
 
         elif one_or_k == 2:
-            top_k_paths = yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index)
+            top_k_paths = yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, line_manager)
             print("Top", k, "routes from", start_station, "to", terminal_station)
             route_number = 1
             for path in top_k_paths:
@@ -214,12 +249,14 @@ if __name__ == '__main__':
                         return station_name
                     else:
                         print("输入的站点无效，请重新输入。")
+
+
+            start_station = "劳动路"
+            terminal_station = "宝带路"
             """
             start_station = get_valid_station_input("请输入起始站: ", station_index)
             terminal_station = get_valid_station_input("请输入终点站: ", station_index)
             """
-            start_station = "南门"
-            terminal_station = "广济南路"
 
             find_routes(one_or_k, start_station, terminal_station, v_matrix, bias, station_index, line_manager)
 

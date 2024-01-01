@@ -25,7 +25,8 @@ def request_suzhou_metro_data():# 创建StationManager和LineManager实例
                 # 向StationManager和LineManager添加数据
                 ori_station_num = len(list(station_manager.stations.values()))
                 station_manager.add_station(station_name, line_number, station_index)
-                line_manager.add_line(line_number, station_name)
+
+                line_manager.add_line(line_number, station_manager.stations[station_name])
                 if(ori_station_num<len(list(station_manager.stations.values()))):
                     station_index += 1
 

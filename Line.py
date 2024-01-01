@@ -1,4 +1,4 @@
-
+from Station import Station
 class Line:
 
     line_number = 0
@@ -8,5 +8,6 @@ class Line:
         self.line_number = line_number
         self.stations = []
 
-    def add_station(self, station_name):
-        self.stations.append(station_name)
+    def add_station(self, station):
+        self.stations.append(station)
+

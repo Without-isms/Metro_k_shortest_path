@@ -3,6 +3,7 @@
 from Station import Station
 
 
+
 class StationManager:
 
     stations = {}
@@ -33,11 +34,4 @@ class StationManager:
             self.print_station_info(self.stations[each].name,self.stations[each].index)
             print()
         print("Station count ", len(self.stations))
-
-    def get_same_lines(self, from_station, to_station):
-        line_numbers = []
-        for each_line in from_station.lines:
-            if each_line in to_station.lines:
-                line_numbers.append(each_line)
-        return line_numbers
 
