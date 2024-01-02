@@ -151,7 +151,6 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
                         new_path=new_path.add_path(route_of_spur_path,True)
                     heapq.heappush(potential_k_paths, (distance_plus_bias, new_path))
                 # 恢复原始图
-                #解决下一个应该是从spurpath的最后一个节点出发
                 v_matrix = original_v_matrix
         # 添加下一个最短路径
         if(potential_k_paths==[]):
@@ -237,12 +236,9 @@ if __name__ == '__main__':
         line_manager.print_stops(each_route.line_number, each_route.from_stop, each_route.to_stop)
 
 
-
-
     while True:
         # 获取用户选择执行手动输入还是自动遍历
         execution_mode = input("请输入 'hand' 执行手动输入，或 'auto' 执行自动遍历: ")
-
         if execution_mode == '' or execution_mode == 'hand':
             def get_valid_station_input(prompt, station_index):
                 while True:
@@ -252,14 +248,8 @@ if __name__ == '__main__':
                     else:
                         print("输入的站点无效，请重新输入。")
 
-
-            start_station = "狮子山"
-            terminal_station = "劳动路"
-            """
             start_station = get_valid_station_input("请输入起始站: ", station_index)
             terminal_station = get_valid_station_input("请输入终点站: ", station_index)
-            """
-
             find_routes(one_or_k, start_station, terminal_station, v_matrix, bias, station_index, line_manager)
 
             break  # 退出循环
