@@ -65,8 +65,6 @@ def dijkstra(v_matrix, start_index, end_index, bias):
             break
         # 更新邻接顶点的距离
         for v in range(len(v_matrix[u])):
-            if v==13:
-                bbbb=1
             if not book[v]:
                 if v_matrix[u][v].stops < 9999:
                     new_distance = dis[u][0] + v_matrix[u][v].stops + bias
@@ -114,19 +112,19 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
                                                               list_route_of_partial_root[-1], get_same_lines(list_route_of_partial_root[0],list_route_of_partial_root[-1]))
                         root_path=root_path.add_path(route_of_partial_root,False)
                 original_v_matrix = copy.deepcopy(v_matrix)
-                path_station_indices = [
-                    (path_index, station_index)
-                    for path_index, path in enumerate(paths)
-                    for station_index, station in enumerate(path.station_visit_sequence)
+                spur_nodes_indices_in_stations_and_paths = [
+                    (spur_nodes_path_index, spur_nodes_station_index)
+                    for spur_nodes_path_index, path in enumerate(paths)
+                    for spur_nodes_station_index, station in enumerate(path.station_visit_sequence)
                     if station.name == spur_node.name
                 ]
                 # 定位所有包含spur_node的path在paths中的index还有所有route在path.routes中的index
                 # 之后找path中所有经过spur node的弧，找到它们的出点，让所有spur_node-出点的弧都不被经过
                 # （此处需要注意，路过spur_node和出点但不以spur_node和出点为出发点的是不是也应该block
                 spur_node_to_station_list = []
-                for spur_node_to_path_sation_index in path_station_indices:
-                    spur_node_to_station=paths[spur_node_to_path_sation_index[0]].station_visit_sequence[
-                        spur_node_to_path_sation_index[1] + 1]
+                for spur_node_to_path_station_index in spur_nodes_indices_in_stations_and_paths:
+                    spur_node_to_station=paths[spur_node_to_path_station_index[0]].station_visit_sequence[
+                        spur_node_to_path_station_index[1] + 1]
                     spur_node_to_station_list.append(spur_node_to_station)
                     for spur_node_to_station in spur_node_to_station_list:
                         # 找到v_matrix中含有spur_node到spur_node_to_index_list中所有点的弧，全部都赋值为9999
@@ -136,11 +134,11 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
                         blocked_routes=[]
                         for from_stations in selected_line.stations:
                             for to_stations in selected_line.stations:
-                                if spur_node.index > spur_node_to_station.index:  # 反着开
-                                    if ((from_stations.index>=spur_node.index) & (to_stations.index<=spur_node_to_station.index)):
+                                if spur_node.station_sequence_of_the_line > spur_node_to_station.station_sequence_of_the_line:  # 反着开
+                                    if ((from_stations.station_sequence_of_the_line>=spur_node.station_sequence_of_the_line) & (to_stations.station_sequence_of_the_line<=spur_node_to_station.station_sequence_of_the_line)):
                                         blocked_routes.append((from_stations,to_stations))
-                                elif spur_node.index < spur_node_to_station.index:
-                                    if ((from_stations.index <= spur_node.index) & (to_stations.index >= spur_node_to_station.index)):
+                                elif spur_node.station_sequence_of_the_line < spur_node_to_station.station_sequence_of_the_line:
+                                    if ((from_stations.station_sequence_of_the_line <= spur_node.station_sequence_of_the_line) & (to_stations.station_sequence_of_the_line >= spur_node_to_station.station_sequence_of_the_line)):
                                         blocked_routes.append((from_stations, to_stations))
                         for blocked_route in blocked_routes:
                             v_matrix[blocked_route[0].index][blocked_route[1].index].stops = 9999
@@ -161,10 +159,14 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
         duplicate = True
         while duplicate:
             duplicate = False
+            if (potential_k_paths == []):
+                continue
             potential_new_path = heapq.heappop(potential_k_paths)[1]
             for path in paths:
                 if path.station_visit_sequence_index == potential_new_path.station_visit_sequence_index:
                     duplicate=True
+                if len(set(potential_new_path.station_visit_sequence_index)) < len(potential_new_path.station_visit_sequence_index):
+                    duplicate = True
         paths.append(potential_new_path)
     return paths
 
@@ -251,8 +253,8 @@ if __name__ == '__main__':
                         print("输入的站点无效，请重新输入。")
 
 
-            start_station = "劳动路"
-            terminal_station = "宝带路"
+            start_station = "狮子山"
+            terminal_station = "劳动路"
             """
             start_station = get_valid_station_input("请输入起始站: ", station_index)
             terminal_station = get_valid_station_input("请输入终点站: ", station_index)

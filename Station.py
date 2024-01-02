@@ -7,6 +7,7 @@ class Station:
     name = ""
     lines = []
     index = 0
+    station_sequence_of_the_line = 0
 
     def __init__(self, name, index):
         self.name = name
