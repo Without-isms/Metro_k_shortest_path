@@ -4,6 +4,8 @@ import MetroRequester_SuZhou
 import MetroRequester
 from Route import Route
 from Path import Path
+import heapq
+import copy
 
 #station_manager, line_manager = MetroRequester.request_shanghai_metro_data()
 station_manager, line_manager = MetroRequester_SuZhou.request_suzhou_metro_data()
@@ -24,14 +26,17 @@ def get_same_lines(from_station, to_station):
             line_numbers.append(each_line)
     return line_numbers
 
-for i in range(0, len(stations_list)):
-    v_matrix.append([])
-    for j in range(0, len(stations_list)):
-        same_lines = get_same_lines(stations_list[i], stations_list[j])
-        v_matrix[i].append(line_manager.get_best_route(station_manager, stations_list[i], stations_list[j], same_lines))
+"""
+class TrackableList(list):
+    def append(self, item):
+        print(f"Appending to list: {item}")
+        super().append(item)
+    def __setitem__(self, index, item):
+        print(f"Setting item at index {index}: {item}")
+        super().__setitem__(index, item)
+"""
 
-import heapq
-import copy
+
 
 def dijkstra(v_matrix, start_index, end_index, bias):
     # 初始化距离和路径记录数组
@@ -63,6 +68,7 @@ def dijkstra(v_matrix, start_index, end_index, bias):
     return dis[end_index]
 
 def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, line_manager):
+    original_v_matrix = copy.deepcopy(v_matrix)
     start_index = station_index[start_station]
     terminal_index = station_index[terminal_station]
     # 初始最短路径
@@ -80,24 +86,23 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
 
     for i in range(1, k):
         the_latest_added_path=paths[-1]
-        for j in range(len(the_latest_added_path.routes) - 1):
+        for j in range(len(the_latest_added_path.routes) - 1): #生成一个从0到n-1的整数序列
             route_belongs_dif_line=the_latest_added_path.routes[j]
             for spur_node in route_belongs_dif_line.stations:
-                spur_node_index = station_index[spur_node.name]
-                paths_with_root = paths[-1].routes[:j + 1]
+                spur_node_index = station_index[spur_node.name] #这样的话，route头尾的站会被选择两次
+                route_list_contains_root_path = the_latest_added_path.routes[:j + 1] #从列表 routes 中获取从开始（索引0）到 j+1（不包括索引为 j+1 的元素）的所有元素
                 root_path = Path()
-                list_route_of_partial_root = []
-                for route_with_partial_root in paths_with_root:
+                for route_with_partial_root in route_list_contains_root_path:
+                    list_route_of_partial_root = []
                     for station in route_with_partial_root.stations:
                         list_route_of_partial_root.append(station)
                         if station.name == spur_node.name:
                             break# 标记找到了spur_node
-                    if(len(list_route_of_partial_root)>0):
-                        route_of_partial_root=Route()
+                    if(len(list_route_of_partial_root)>1):
+                        route_of_partial_root = Route()
                         route_of_partial_root.construct_route(line_manager, station_manager, list_route_of_partial_root[0],
                                                               list_route_of_partial_root[-1], get_same_lines(list_route_of_partial_root[0],list_route_of_partial_root[-1]))
                         root_path=root_path.add_path(route_of_partial_root,False)
-                original_v_matrix = copy.deepcopy(v_matrix)
                 spur_nodes_indices_in_stations_and_paths = [
                     (spur_nodes_path_index, spur_nodes_station_index)
                     for spur_nodes_path_index, path in enumerate(paths)
@@ -137,22 +142,26 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
                         new_path=new_path.add_path(route_of_spur_path,True)
                     heapq.heappush(potential_k_paths, (distance_plus_bias, new_path))
                 # 恢复原始图
-                v_matrix = original_v_matrix
+                v_matrix = copy.deepcopy(original_v_matrix)
+
         # 添加下一个最短路径
         if(potential_k_paths==[]):
             continue
-        duplicate = True
-        while duplicate:
-            duplicate = False
+        duplicate_or_loop = True
+        while duplicate_or_loop:
+            duplicate_or_loop = False
             if (potential_k_paths == []):
                 continue
             potential_new_path = heapq.heappop(potential_k_paths)[1]
             for path in paths:
                 if path.station_visit_sequence_index == potential_new_path.station_visit_sequence_index:
-                    duplicate=True
-                if len(set(potential_new_path.station_visit_sequence_index)) < len(potential_new_path.station_visit_sequence_index):
-                    duplicate = True
-        paths.append(potential_new_path)
+                    duplicate_or_loop = True
+                    break
+            if len(set(potential_new_path.station_visit_sequence_index)) < len(
+                    potential_new_path.station_visit_sequence_index):
+                duplicate_or_loop = True
+            if duplicate_or_loop==False:
+                paths.append(potential_new_path)
     return paths
 
 
@@ -169,15 +178,63 @@ if __name__ == '__main__':
     k = get_input_or_default("请输入要查询的路线数目 K (默认值为 3，直接回车使用默认值): ", 3)
     bias = get_input_or_default("换乘一次与坐几站花费的时间等价？ bias (默认值为 3，直接回车使用默认值): ", 3)
 
-    def find_routes(start_station, terminal_station, v_matrix, bias, station_index, line_manager):
+    for i in range(0, len(stations_list)):
+        v_matrix.append([])
+        for j in range(0, len(stations_list)):
+            same_lines = get_same_lines(stations_list[i], stations_list[j])
+            new_route = Route()
+            new_route.construct_route(line_manager, station_manager, stations_list[i], stations_list[j], same_lines)
+            v_matrix[i].append(new_route)
+
+    """
+    v_matrix = TrackableList()
+    for i in range(0, len(stations_list)):
+        v_matrix.append(TrackableList())
+        for j in range(0, len(stations_list)):
+            same_lines = get_same_lines(stations_list[i], stations_list[j])
+            new_route = Route()
+            new_route._track_changes = True
+            new_route.construct_route(line_manager, station_manager, stations_list[i], stations_list[j], same_lines)
+            v_matrix[i].append(new_route)
+    """
+
+    def find_routes(exist_path_number, OD_path_dic, section_path_dic, path_section_dic, start_station, terminal_station, v_matrix, bias, station_index, line_manager):
         top_k_paths = yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, line_manager)
         print("Top", k, "routes from", start_station, "to", terminal_station)
-        route_number = 1
+        paths_info = []
         for path in top_k_paths:
-            print("Route number", route_number, ":")
+            path_info = {
+                "path_number": exist_path_number,
+                "from_stop": path.from_stop,
+                "to_stop": path.to_stop,
+                "start_index": path.start_index,
+                "end_index": path.end_index,
+                "routes": path.routes,
+                "station_visit_sequence_index": path.station_visit_sequence_index,
+                "station_visit_sequence": path.station_visit_sequence,
+                "number_of_stations": path.number_of_stations,
+                "number_of_transfers": path.number_of_transfers,
+            }
+            paths_info.append(path_info)
+            print("Path number", exist_path_number, ":")
             for each_route in path.routes:
                 print_route_info(each_route, line_manager)
-            route_number += 1
+                for sta_index in range(len(each_route.stations)-1):
+                    station_name_pair_keys = (each_route.stations[sta_index].name,each_route.stations[sta_index+1].name)
+                    station_pair_values = (each_route.stations[sta_index], each_route.stations[sta_index + 1])
+                    if exist_path_number in path_section_dic:
+                        path_section_dic[exist_path_number].append(station_pair_values)
+                    else:
+                        path_section_dic[exist_path_number] = [station_pair_values]
+                    if station_name_pair_keys in section_path_dic:
+                        section_path_dic[station_name_pair_keys].append(path_info)
+                    else:
+                        section_path_dic[station_name_pair_keys] = [path_info]
+            exist_path_number += 1
+            # 将路径信息保存到字典中
+        OD_path_dic[(start_station, terminal_station)] = paths_info
+        return exist_path_number, OD_path_dic, section_path_dic, path_section_dic
+
 
     def print_route_info(each_route, line_manager):
         print("在 " + each_route.from_stop + " 乘坐 " + str(
@@ -187,6 +244,10 @@ if __name__ == '__main__':
     while True:
         # 获取用户选择执行手动输入还是自动遍历
         execution_mode = input("请输入 'hand' 执行手动输入，或 'auto' 执行自动遍历: ")
+        exist_path_number = 1
+        OD_path_dic = {}
+        section_path_dic = {}
+        path_section_dic = {}
         if execution_mode == '' or execution_mode == 'hand':
             def get_valid_station_input(prompt, station_index):
                 while True:
@@ -195,22 +256,24 @@ if __name__ == '__main__':
                         return station_name
                     else:
                         print("输入的站点无效，请重新输入。")
-
             start_station = get_valid_station_input("请输入起始站: ", station_index)
             terminal_station = get_valid_station_input("请输入终点站: ", station_index)
-            find_routes(start_station, terminal_station, v_matrix, bias, station_index, line_manager)
-
+            print(f"====================从 {start_station} 到 {terminal_station} 的路径。====================")
+            exist_path_number, OD_path_dic, section_path_dic, path_section_dic = (
+                find_routes(exist_path_number, OD_path_dic, section_path_dic, path_section_dic, start_station,
+                            terminal_station, v_matrix, bias, station_index, line_manager))
             break  # 退出循环
         elif execution_mode == 'auto':
             # 自动遍历流程
             for i in range(len(stations_list)):
                 for j in range(len(stations_list)):
                     if i != j:
+                        v_matrix_ori = copy.deepcopy(v_matrix)
                         start_station = stations_list[i].name
                         terminal_station = stations_list[j].name
-                        print(f"从 {start_station} 到 {terminal_station} 的路径。")
-                        find_routes(start_station, terminal_station, v_matrix, bias, station_index,line_manager)
-            break  # 退出循环
+                        print(f"====================从 {start_station} 到 {terminal_station} 的路径。====================")
+                        exist_path_number, OD_path_dic, section_path_dic, path_section_dic = (
+                            find_routes(exist_path_number, OD_path_dic, section_path_dic, path_section_dic, start_station, terminal_station, v_matrix_ori, bias, station_index, line_manager))
         else:
             print("输入无效，请输入 'hand' 或 'auto'。")
 

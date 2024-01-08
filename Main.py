@@ -28,7 +28,9 @@ for i in range(0, len(stations_list)):
     v_matrix.append([])
     for j in range(0, len(stations_list)):
         same_lines = get_same_lines(stations_list[i], stations_list[j])
-        v_matrix[i].append(line_manager.get_best_route(station_manager, stations_list[i], stations_list[j], same_lines))
+        new_route = Route()
+        new_route.construct_route(line_manager,station_manager,stations_list[i], stations_list[j], same_lines)
+        v_matrix[i].append(new_route)
 
 import heapq
 import copy

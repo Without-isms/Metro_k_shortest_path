@@ -10,6 +10,12 @@ class Route:
         self.stations = []  # 初始化为实例变量
         self.start_index = 0
         self.end_index = 0
+        self._track_changes = False
+
+    def __setattr__(self, name, value):
+        if hasattr(self, '_track_changes') and self._track_changes and name != '_track_changes':
+            print(f"Route attribute changed: {name} = {value}")
+        super().__setattr__(name, value)
 
     def construct_route(self, line_manager, station_manager, from_station, to_station, lines):
         self.from_stop = from_station.name

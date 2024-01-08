@@ -1,7 +1,5 @@
-
 from Line import Line
 from Route import Route
-
 
 class LineManager:
     lines = {}
@@ -28,48 +26,6 @@ class LineManager:
             self.print_line_info(self.lines[each].line_number)
             print()
         print("Line count ", len(self.lines))
-
-    def get_best_route(self, station_manager, from_station, to_station, lines):
-        route = Route()
-        route.from_stop = from_station.name
-        route.to_stop = to_station.name
-        route.start_index = from_station.index
-        route.end_index = to_station.index
-        route.stops = 9999
-        if len(lines) == 0:
-            route.stops = 9999
-            return route
-        else:
-            for each_line in lines:
-                line = self.lines[each_line]
-                start_index = 0
-                stop_index = 0
-                find_start_index = False
-                find_stop_index = False
-
-                for i in range(0, len(line.stations)):
-                    if line.stations[i].name == from_station.name:
-                        start_index = i
-                        find_start_index=True
-                    if line.stations[i].name == to_station.name:
-                        stop_index = i
-                        find_stop_index=True
-                    if find_start_index and find_stop_index:
-                        break
-
-                stops = abs(start_index - stop_index)
-
-                if stops < route.stops:
-                    route.stops = stops
-                    route.line_number = line.line_number
-                    # 清空之前的stations列表并添加新的站点
-                    if start_index <= stop_index:
-                        station_list = line.stations[start_index:stop_index + 1]
-                    else:
-                        station_list = line.stations[stop_index:start_index + 1][::-1]
-                    for station in station_list:
-                        route.stations.append(station_manager.stations[station.name])
-        return route
 
     def print_stops(self, line_number, from_stop, to_stop):
         line = self.lines[line_number]
