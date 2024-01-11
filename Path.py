@@ -19,33 +19,43 @@ class Path:
         # 这意味着当 distance_plus_bias 相等时，插入顺序将被保留
         return False
 
-    def add_path(self, route, path_or_not):
+    def add_path(self, route):
         new_path=copy.deepcopy(self)
         new_path.to_stop=route.to_stop
         new_path.end_index=route.end_index
         if (len(new_path.routes)==0):
             new_path.from_stop = route.from_stop
             new_path.start_index = route.start_index
-            new_path.routes=[]
-        new_path.routes.append(route)
-        if path_or_not == False: #这个与下面的判断有点写重复了，有空可以重新修改一下
-            new_path.station_visit_sequence = new_path.station_visit_sequence[:-1] + route.stations
-            new_path.station_visit_sequence_index = new_path.station_visit_sequence_index[:-1] + [int(station.index) for
-                                                                                                  station in
-                                                                                                  route.stations]
+            new_path.routes.append(route)
+            new_path.station_visit_sequence = new_path.station_visit_sequence + route.stations
+            new_path.station_visit_sequence_index = new_path.station_visit_sequence_index + [int(station.index) for
+                                                                                             station in
+                                                                                             route.stations]
+
         else:
-            if new_path.station_visit_sequence_index[-1]!=route.start_index:
+            if new_path.station_visit_sequence_index[-1] != route.start_index:
                 new_path.station_visit_sequence = new_path.station_visit_sequence + route.stations
-                new_path.station_visit_sequence_index = new_path.station_visit_sequence_index + [int(station.index) for
+                new_path.station_visit_sequence_index = new_path.station_visit_sequence_index + [int(station.index)
+                                                                                                 for
                                                                                                  station in
                                                                                                  route.stations]
             else:
                 new_path.station_visit_sequence = new_path.station_visit_sequence[:-1] + route.stations
-                new_path.station_visit_sequence_index = new_path.station_visit_sequence_index[:-1] + [int(station.index)
-                                                                                                      for
-                                                                                                      station in
-                                                                                                      route.stations]
-
+                new_path.station_visit_sequence_index = new_path.station_visit_sequence_index[:-1] + [
+                    int(station.index)
+                    for
+                    station in
+                    route.stations]
+            if (new_path.routes[-1].line_number == route.line_number):
+                route_add_fregment = copy.deepcopy(new_path.routes[-1])
+                route_add_fregment.to_stop = route.to_stop
+                route_add_fregment.end_index = route.end_index
+                route_add_fregment.stops += route.stops
+                route_add_fregment.stations.extend(route.stations[1:])
+                del new_path.routes[-1]
+                new_path.routes.append(route_add_fregment)
+            else:
+                new_path.routes.append(route)
         return new_path
 
 

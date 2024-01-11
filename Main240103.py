@@ -43,7 +43,7 @@ def dijkstra(v_matrix, start_index, end_index, bias):
     book = [0] * len(v_matrix)
     dis = []
     for i in range(0, len(v_matrix)):
-        dis.append((v_matrix[start_index][i].stops, Path().add_path(v_matrix[start_index][i],False)))
+        dis.append((v_matrix[start_index][i].stops, Path().add_path(v_matrix[start_index][i])))
     dis[start_index] = (0,Path())
     while True:
         # 找到未处理的最小距离顶点
@@ -60,7 +60,7 @@ def dijkstra(v_matrix, start_index, end_index, bias):
                 if v_matrix[u][v].stops < 9999:
                     new_distance = dis[u][0] + v_matrix[u][v].stops + bias
                     if new_distance < dis[v][0]:
-                        dis[v] = (new_distance, dis[u][1].add_path(v_matrix[u][v],False))
+                        dis[v] = (new_distance, dis[u][1].add_path(v_matrix[u][v]))
                 elif v_matrix[u][v].stops == 9999:
                     continue#此路不通
         # 标记u为已处理
@@ -102,7 +102,7 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
                         route_of_partial_root = Route()
                         route_of_partial_root.construct_route(line_manager, station_manager, list_route_of_partial_root[0],
                                                               list_route_of_partial_root[-1], get_same_lines(list_route_of_partial_root[0],list_route_of_partial_root[-1]))
-                        root_path=root_path.add_path(route_of_partial_root,False)
+                        root_path=root_path.add_path(route_of_partial_root)
                 spur_nodes_indices_in_stations_and_paths = [
                     (spur_nodes_path_index, spur_nodes_station_index)
                     for spur_nodes_path_index, path in enumerate(paths)
@@ -139,7 +139,7 @@ def yen_ksp(start_station, terminal_station, k, v_matrix, bias, station_index, l
                 if (total_stops < 9999) & (total_stops > 0):
                     new_path=copy.deepcopy(root_path)
                     for route_of_spur_path in spur_path.routes:
-                        new_path=new_path.add_path(route_of_spur_path,True)
+                        new_path=new_path.add_path(route_of_spur_path)
                     heapq.heappush(potential_k_paths, (distance_plus_bias, new_path))
                 # 恢复原始图
                 v_matrix = copy.deepcopy(original_v_matrix)
